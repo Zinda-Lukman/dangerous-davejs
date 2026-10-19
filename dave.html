@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dangerous Dave</title>
+<style id="stylesheet"></style>
+<link rel="shortcut icon" href="gfx/favicon.ico" type="image/x-icon" />
+<script>
+    // Initialize APP_CONFIG with environment variables
+    // These are injected by webpack or set in .env file
+    window.APP_CONFIG = {
+        apiBaseUrl: typeof process !== 'undefined' && process.env?.VITE_API_BASE_URL ? process.env.VITE_API_BASE_URL : 'https://sokoban-cloudflare-api.lookmans.workers.dev',
+        clientApiKey: typeof process !== 'undefined' && process.env?.VITE_CLIENT_API_KEY ? process.env.VITE_CLIENT_API_KEY : 'replace-with-your-client-api-key'
+    };
+    window.CLIENT_API_KEY = window.CLIENT_API_KEY || window.APP_CONFIG.clientApiKey;
+</script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script type="text/javascript" src="js/lib/audio-metadata.min.js"></script>
+<script type="text/javascript" src="js/lib/jszip.min.js"></script>
+<script type="text/javascript" src="js/cheat.js"></script>
+<script type="text/javascript" src="js/collision.js"></script>
+<script type="text/javascript" src="js/demo.js"></script>
+<script type="text/javascript" src="js/draw.js"></script>
+<script type="text/javascript" src="js/gamepad.js"></script>
+<script type="text/javascript" src="js/graphic.js"></script>
+<script type="text/javascript" src="js/key.js"></script>
+<script type="text/javascript" src="js/level.js"></script>
+<script type="text/javascript" src="js/mouse.js"></script>
+<script type="text/javascript" src="js/saving.js"></script>
+<script type="text/javascript" src="js/score.js"></script>
+<script type="text/javascript" src="js/sound.js"></script>
+<script type="text/javascript" src="js/tile.js"></script>
+<script type="text/javascript" src="js/touch.js"></script>
+<script type="text/javascript" src="js/shop.js"></script>
+<script type="text/javascript" src="js/purchase.js"></script>
+<script type="text/javascript" src="js/orientation.js"></script>
+<script type="text/javascript" src="js/storage.js"></script>
+<script type="text/javascript">
+// Some information about how Dave works comes from the ModdingWiki at
+// http://www.shikadi.net/moddingwiki.
+//
+// Also, I do know that a few other people have made their own attempt
+// at a JavaScript Dangerous Dave, but I felt like doing my own take on
+// it, because I wanted to do a bigger programming exercise. I did NOT
+// take code from anyone else's JS Dave. I may, however, taken some bits
+// of code from these various sources:
+// * Various Stack Overflow questions (that I wasn't involved in)
+// * Mozilla developer docs
+// * An old edition of the JavaScript Bible
+// * Some book on HTML5
+// * Probably some other random sources, too
+//
+// Mine however, seems to be the most complete and accurate one that
+// doesn't use reverse engineering, as far as I can tell.
+//
+// If you spot any code that you recognize as yours and you demand
+// credit for it, feel free to contact me about it and I'll add your
+// credit to this source file. If you want it removed... that's your
+// right too but be aware that removing that code may break this game.
+
+var frame = 0
+var startPause = false
+var pause = false
+var altUnpause = 0
+var freezeGame = false
+
+async function init() {
+  try {
+    if (!window.localStorage.getItem("dave-highscores-n0")) {
+      resetScores()
+    } else {
+      importScores()
+    }
+  }
+  catch (err) {
+    console.log(err.message)
+    readOnly = true
+  }
+  if (window.ArrayBuffer) {
+    soundSystem = SNDSYS_BUFFER
+    if (!jumpSnd.buffer) {
+      switchSounds(soundSet)
+    }
+  } else {
+    soundSystem = SNDSYS_ELEMENT
+  }
+  initialDraw()
+  console.log("In Init")
+  await loadUserProgressFromDatabase().catch(function() {})
+  if (drawInited == true) {
+    window.setInterval(draw,15)
+  }
+}
+
+var tx = 170
+var ty = 40
+var subFrame = 0
+var jetpack = 0
+var gun = false
+var trophy = false
+var explosions = []
+var inWarp = false
+var usedWarp = false
+var killingDave = false
+var sayOw = false
+const DaveStanding=0
+const DaveWalking=1
+const DaveJumping=2
+const DaveFalling=3
+const DaveClimbing=4
+const DaveFlying=5
+const DaveDying=6
+
+var daveYVelocity = 0
+var daveYDistance = 0
+var daveFacing = 1
+var daveAnim = 0
+var lives = 3
+var lifeAt = 20000
+var levelTiles //= [[],[],[],[],[],[],[],[],[],[]]
+var currentLevel = 1
+var loadedLevel = 0
+var daveScreen = 2
+var previousScreen = 2
+var dave = new Sprite(0,0,20,16,0,0,20,16,"gfx/"+graphicsSet+"/dave.png")
+dave.renderable=true
+dave.hw = 16
+var interDave = new Sprite(0,0,20,16,0,0,20,16,"gfx/"+graphicsSet+"/dave.png")
+interDave.renderable=true
+var bullet = new Sprite(0,0,12,3,0,0,12,3,"gfx/"+graphicsSet+"/bullet.png")
+bullet.hw = 8
+var bulletTimeout = 0
+var menuFrame = 0
+var selectedItem = 0
+var settingsX = 0
+var settingsY = 0
+var settingsAt = [2,1,0]
+var doomMode = false
+var chexMode = false
+
+const settingsPositions2=[0,64,88,104]
+const settingsPositions=[56,80,96,136]
+const settingsLimits=[2,3,1,1]
+
+var touchX = [0,0]
+var touchY = [0,0]
+var touchDown = [false,false]
+var graphicsSwitch = false
+
+var mobile_mode = !!(navigator.userAgentData && navigator.userAgentData.mobile) || !!(navigator.userAgent && navigator.userAgent.includes("Mobile"))
+// Telegram shop variables
+//@audit to fix
+var tgStars = 10000 // user's TG stars balance (replace with real value from Telegram WebApp when available)
+var lifePrice = 5 // price in stars per extra life
+var shopShown = false // ensure shop modal is only shown once per game over
+function openSettings() {
+  KeysReR[K_ESC] = false
+  menuFrame = 0
+  settingsX = 0
+  settingsY = 0
+  selectedItem = 0
+  if (daveScreen == SCREEN_CONTROL_PANEL) {
+    daveScreen = previousScreen
+    exportScores()
+  } else if (previousScreen < (SCREEN_CONTROL_PANEL+1)) {
+    if (daveScreen < (SCREEN_CONTROL_PANEL+1)) {
+      previousScreen = daveScreen
+    }
+    daveScreen = SCREEN_CONTROL_PANEL
+  }
+}
+
+function checkLand(sprite,kill=true) {
+  ret=(tileAt(sprite.x+2,sprite.y+sprite.h,sprite==dave) == TINFO_SOLID || tileAt(sprite.x+14,sprite.y+sprite.h,sprite==dave) == TINFO_SOLID)
+  if (!kill) {
+    killingDave=false
+  }
+  return ret
+}
+
+function killDave(owSound) {
+  if (dave.state != DaveDying && !invincible) {
+    killingDave = true
+    sayOw = owSound
+  }
+}
+
+loadLevel(0)
+
+function hideHelp() {
+  var helpElement = document.getElementById('help')
+  helpElement.style['display'] = 'none'
+  canvas.style.display = "block"
+  freezeGame = false
+  if (soundSystem == SNDSYS_BUFFER) {
+    audioCtx.resume()
+  } else if (soundSystem == SNDSYS_ELEMENT && music[currentMusic]) {
+    music[currentMusic].play()
+  }
+}
+
+function loadError() {
+  if (graphicsSet == "nes") {
+    alert("Sorry, the NES graphics mode is not available yet.")
+    switchGraphics("cga")
+  }
+}
+
+function copyToClipboard(event) {
+  if (daveScreen == SCREEN_HIGH_SCORES) {
+    copyScores()
+  } else if (daveScreen == SCREEN_GAME) {
+    copyLevel()
+  }
+}
+
+async function loadClipboardData(event) {
+  let paste = ""
+  if (event && event.clipboardData) {
+    paste = event.clipboardData.getData('text')
+  } else if (window.clipboardData) { 
+    paste = window.clipboardData.getData('text')
+  } else {
+    paste = await navigator.clipboard.readText()
+  }
+  if ((paste.length == 1010 || paste.length == 1009) && daveScreen == SCREEN_TITLE) {
+    daveScreen = SCREEN_GAME
+    lives = 3
+    score = 0
+    currentLevel = 0
+    lifeAt = 20000
+    disqualified=true
+    invincible=false
+    updateHud()
+    setMusic("")
+    loadLevel(0,false,paste)
+    if (music["customlevel"]) {
+      setMusic("customlevel")
+    } else {
+      var randMax = (music["warp"] ? 11 : 10)
+      var musicName = "level"+(Math.floor(Math.random()*randMax)+1)
+      setMusic(musicName == "level11" ? "warp" : musicName)
+    }
+  } else if (paste.substr(0,7).toLowerCase() == "$music\n") {
+    doomMode = false
+    chexMode = false
+    defineLevelMusic(paste.substr(7))
+    updateMusic(true)
+  } else if (paste.substr(0,5).toLowerCase() == "dave-") {
+    pasteScores(paste)
+  }
+}
+
+window.addEventListener("load", init, false)
+
+window.addEventListener("copy", copyToClipboard, false)
+
+window.addEventListener("paste", loadClipboardData, false)
+
+window.addEventListener("error", loadError, false)
+</script>
+<style>
+#game-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  position: relative;
+}
+#game-top-spacer {
+  flex: none;
+  height: 20.3333vh;
+  width: 100%;
+}
+#game-canvas-wrap {
+  flex: 0 0 auto;
+  position: relative;
+}
+#controls-area {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+#touch-settings-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 60;
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.8);
+  background: rgba(0,0,0,0.65);
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+#touch-settings-menu {
+  position: absolute;
+  top: 58px;
+  right: 12px;
+  z-index: 70;
+  display: none;
+  min-width: 168px;
+  background: rgba(0,0,0,0.82);
+  border: 2px solid rgba(255,255,255,0.8);
+  border-radius: 8px;
+  padding: 8px;
+}
+#touch-settings-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: #fff;
+  border: 0;
+  padding: 8px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+#touch-settings-menu button.active {
+  background: rgba(255,255,255,0.22);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.45);
+  font-weight: 700;
+}
+
+/* D-pad and action buttons */
+.dpad {
+  display: inline-block;
+  user-select: none;
+}
+.dpad-row {
+  display: flex;
+  justify-content: center;
+}
+.dpad-button {
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  border: 2px solid #666;
+  width: 64px;
+  height: 48px;
+  margin: 4px;
+  font-size: 20px;
+  border-radius: 6px;
+  touch-action: none;
+}
+.action-button {
+  background: rgba(0,0,0,0.85);
+  border: 2px solid #666;
+  color: #fff;
+  width: 72px;
+  height: 48px;
+  margin: 4px 12px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+#jet-button {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 40;
+}
+/* Landscape fullscreen mode: hide chrome and allow canvas to cover viewport */
+body.landscape #game-top-spacer { display: none; }
+body.landscape #controls-area { display: none; }
+body.landscape #game-canvas-wrap { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; z-index: 10; }
+body.landscape #gamearea { box-sizing: border-box};
+</style>
+</head>
+<body onKeyDown="checkIt(event)" onKeyUp="noKey(event)"
+onTouchMove="touchMove(event)" onTouchStart="ddtouchDown(event)" onTouchEnd="ddtouchUp(event)"
+style="background-color: #000; margin: 0px; padding: 0px; border: 0px; align-items: center;">
+<div id="game-root">
+  <div id="game-top-spacer"></div>
+  <div id="game-canvas-wrap">
+    <button id="touch-settings-button" type="button" aria-label="Touch input settings" title="Touch input settings">⚙</button>
+    <div id="touch-settings-menu" aria-label="Touch input selector">
+      <button type="button" data-touch-mode="swipe">Swipes</button>
+      <button type="button" data-touch-mode="dpad">D-pad</button>
+      <button type="button" data-touch-action="exit">Exit</button>
+    </div>
+    <center>
+    <canvas id="gamearea" width="320" height="200"
+    style="border: 16px solid transparent; padding: 0px; border-image-repeat: repeat; border-image-source: url(gfx/vga/canvas-border.png); border-image-slice: 25%; width: 640px; height: 400px; image-rendering: pixelated; display: block; margin: 0px"
+    onMouseMove="ddMouseMove(event)" onMouseDown="ddMouseDown(event)" onMouseUp="ddMouseUp(event)" onContextMenu="return false;">
+    <span style="color: white">JavaScript needs to be on and your browser needs to support the canvas.</span>
+    </canvas>
+    <div id="help" style="display: none; background-color: #FFFFFF; border: 8px solid transparent; padding: 0px; border-image-repeat: repeat; border-image-source: url(gfx/vga/help-border.png); border-image-slice: 25%; image-rendering: pixelated; max-width: 640px;">
+<h1 style="margin: 0px;">Dangerous Dave</h1>
+
+<p>You use the keyboard to control Dave.</p>
+
+<p>These are the function keys that are available at any time:</p>
+
+<p>F1 = Help<br/>
+F2 = Control Panel<br/>
+F5 = Save Game<br/>
+F9 or Pause/Break = Pause Game<br/>
+F10 or Escape = Quit Game</p>
+
+<p>The object of the game is to guide Dave through 10 perilous areas in
+Clyde's hideout. There are guns &amp; jetpacks to aid you.</p>
+
+<p>In the control panel (F2) you will find the keyboard keys used for
+moving. (They can be redefined).</p>
+
+<p>Watch out for fire, water and WeirdWeeds! These will toast Dave very
+blackly!</p>
+
+<p>Merely grab the trophy and walk through the door. It's that simple!
+Of course, you might run into a few (?) monsters...</p>
+
+<p>Also ... There are a few places Dave can go by trying something
+strange and dangerous...</p>
+
+<p>If you save a game, you'll be put back at the title screen. Saved games can only be loaded once.</p>
+
+<a id="closehelp" href="javascript:hideHelp()">Close Help</a>
+    </div>
+    </center>
+  </div>
+  <div id="controls-area">
+    <div id="cheatButtons"></div>
+  </div>
+
+  <script>
+    function btnDown(k) {
+      try { Keys[k] = true; mobile_mode = true; last_input_by_gamepad = false; } catch(e) {}
+    }
+    function btnUp(k) {
+      try { Keys[k] = false; } catch(e) {}
+    }
+
+    var touchInputMode = 'swipe'
+    var isTouchDevice = !!('ontouchstart' in window || navigator.maxTouchPoints > 0 || navigator.msMaxTouchPoints > 0)
+
+    function applyTouchInputMode(mode) {
+      touchInputMode = mode
+      var settingsMenu = document.getElementById('touch-settings-menu')
+      var settingsButton = document.getElementById('touch-settings-button')
+      if (settingsMenu) {
+        var buttons = settingsMenu.querySelectorAll('button')
+        for (var i = 0; i < buttons.length; i++) {
+          var buttonMode = buttons[i].getAttribute('data-touch-mode')
+          buttons[i].classList.toggle('active', buttonMode === mode)
+        }
+      }
+      if (settingsButton) {
+        settingsButton.title = 'Touch input: ' + (mode === 'swipe' ? 'swipes' : 'd-pad')
+      }
+      try {
+        window.localStorage.setItem('dave-touch-input-mode', mode)
+      } catch (e) {}
+    }
+
+    function toggleTouchSettingsMenu() {
+      var menu = document.getElementById('touch-settings-menu')
+      if (!menu) return
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block'
+    }
+
+    function initTouchControls() {
+      var storedMode = null
+      try {
+        storedMode = window.localStorage.getItem('dave-touch-input-mode')
+      } catch (e) {}
+      if (storedMode === 'dpad' || storedMode === 'swipe') {
+        touchInputMode = storedMode
+      } else if (!isTouchDevice) {
+        touchInputMode = 'dpad'
+      }
+      var settingsButton = document.getElementById('touch-settings-button')
+      var menu = document.getElementById('touch-settings-menu')
+      if (settingsButton && isTouchDevice) {
+        settingsButton.style.display = 'flex'
+        settingsButton.addEventListener('click', function (event) {
+          event.stopPropagation()
+          toggleTouchSettingsMenu()
+        })
+      }
+      if (menu) {
+        menu.querySelectorAll('button').forEach(function (button) {
+          button.addEventListener('click', function () {
+            var action = this.getAttribute('data-touch-action')
+            if (action === 'exit') {
+              Keys[K_ESC] = true
+              KeysReR[K_ESC] = false
+              menu.style.display = 'none'
+              return
+            }
+            var mode = this.getAttribute('data-touch-mode')
+            if (mode === 'swipe' || mode === 'dpad') {
+              applyTouchInputMode(mode)
+            }
+            menu.style.display = 'none'
+          })
+        })
+        document.addEventListener('click', function (event) {
+          if (settingsButton && !menu.contains(event.target) && !settingsButton.contains(event.target)) {
+            menu.style.display = 'none'
+          }
+        })
+      }
+      applyTouchInputMode(touchInputMode)
+    }
+  </script>
+  <script>
+    // Responsive handler: when device is landscape, scale the game canvas to cover the viewport.
+    function applyResponsiveCover() {
+      var canvas = document.getElementById('gamearea')
+      var wrap = document.getElementById('game-canvas-wrap')
+      if (!canvas || !wrap) return
+      var isLandscape = window.innerWidth > window.innerHeight
+      if (isLandscape) {
+        document.body.classList.add('landscape')
+        // scale so canvas covers the whole viewport (may crop)
+        var scale = Math.max(window.innerWidth / 450, window.innerHeight / 450)
+        var newW = Math.ceil(320 * scale)
+        var newH = Math.ceil(200 * scale)
+        canvas.style.width = newW + 'px'
+        canvas.style.height = newH + 'px'
+        // make wrapper match viewport so centering works
+        wrap.style.width = window.innerWidth + 'px'
+        wrap.style.height = window.innerHeight + 'px'
+      } else {
+        document.body.classList.remove('landscape')
+        // revert to original displayed size used elsewhere (double scale)
+        canvas.style.width = (320 * 2) + 'px'
+        canvas.style.height = (200 * 2) + 'px'
+        wrap.style.width = ''
+        wrap.style.height = ''
+      }
+      // update resolution helpers used by input handlers
+      try {
+        // resX/resY are globals defined in js/graphic.js; update them if present
+        if (typeof resX !== 'undefined') {
+          var cw = parseInt(canvas.style.width || canvas.width)
+          var ch = parseInt(canvas.style.height || canvas.height)
+          if (cw && ch) {
+            resX = cw / 320
+            resY = ch / 200
+            if (typeof help !== 'undefined' && help) {
+              help.style.borderWidth = (8 * resX) + 'px'
+              help.style.borderHeight = (8 * resX) + 'px'
+            }
+          }
+        }
+      } catch (e) { /* ignore */ }
+    }
+
+    window.addEventListener('resize', applyResponsiveCover, {passive:true})
+    window.addEventListener('orientationchange', function(){ setTimeout(applyResponsiveCover,100) }, {passive:true})
+    window.addEventListener('load', function(){ setTimeout(applyResponsiveCover,50); initTouchControls(); try { if (window.tutorials && window.tutorials.init) window.tutorials.init(); } catch(e){} }, false)
+  </script>
+  <script type="text/javascript" src="js/tutorials.js"></script>
+</div>
+</body>
+</html>

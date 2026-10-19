@@ -1,0 +1,25 @@
+Save lives from modal restart✅
+will make lives on be possible to be 3
+Saved levels error
+Sounds intergration
+Modal text to game style
+control panel to saved levels
+
+finish scores shit✅
+add a database support✅
+made game load bydefault in landscape mode✅
+Make main menu respond to down and up swipes to move the cursor or purple dot and double tap to select✅
+
+Try saving highest scores✅
+
+REmove music related errors, decide to use ai, first ask if it can connect to api or stop the erroor just
+Should add telegram intergration
+Test purchase and storage, highscores
+
+create a simple shop for jet and gun
+the music
+
+
+remove name in put in tg mode,
+Ensure scores/levels stored properly
+buy not working in tg

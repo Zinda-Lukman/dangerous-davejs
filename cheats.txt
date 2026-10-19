@@ -1,0 +1,97 @@
+################
+# GENERAL INFO #
+################
+
+They work in the same kind of way as Doom-engine game cheats. (You type them
+in in-game.) If you type in a cheat and it doesn't work, try typing it in
+again.
+
+"johnromero"   = Toggle invulnerability
+"apple2"       = Get trophy, gun, full lives, and full jetpack
+"idsoftware"   = Warp to next level
+"softdisk"     = Warp to specific level
+"angryfan"     = Kill Dave
+"shave"        = Take all items
+"soundblaster" = Load music pack, see below section for more info
+
+Warning: You will be disqualified from the high scores if you use any of the
+cheats (with the exception of "soundblaster").
+
+To enter cheat codes on mobile devices, you can either:
+A. Tap the far left of the screen and the far right of the screen with two
+   fingers each. (In total, four fingers on the screen.) This will not work on
+   iOS devices. Blame Apple for nothing.
+B. Tap the "back" button and down on the directional pad at the same time.
+
+With the "softdisk" cheat, inputing a negative number will take you to a warp
+zone. For example, inputting "-5" will take you to the warp zone of level 5.
+Levels that do not actually have warp zones will take you to the actual level
+instead if you try to go to them.
+
+What happens when you try cheat codes from other games?
+
+######################
+# SOUNDBLASTER CHEAT #
+######################
+
+This "cheat" requires some extra explanation to use properly. Unlike other
+cheats, it does not disqualify you and can be inputted from the menu. This
+feature allows you to play music assigned to various levels during the game.
+
+After inputting the cheat, it will ask you to load a file. This can be either
+a text file containing a list of URLs or a a ZIP file directly containing the
+music tracks. Here is a list of valid filenames (in the ZIP format) or keys
+(in the text format):
+
+* "level1": Plays during level 1.
+* "level2": Plays during level 2.
+* "level3": Plays during level 3.
+* "level4": Plays during level 4.
+* "level5": Plays during level 5.
+* "level6": Plays during level 6.
+* "level7": Plays during level 7.
+* "level8": Plays during level 8.
+* "level9": Plays during level 9.
+* "level10": Plays during level 10.
+* "inter": Plays during the "Good work! Only X more to go!" and "WARP ZONE"
+  sequences.
+* "win": Plays on the final screen after beating the last level.
+* "title": Plays on the title screen. Will play over the demos if this is
+  used.
+* "titlenoloop": If this is specified instead of "title", will also play on
+  the title screen but won't loop. If this is used, the demos will play their
+  corresponding level's music as in real gameplay.
+* "scores": Plays over the high scores screen. If not specified, the music
+  that was already playing before this screen was entered will continue.
+* "gameover": Plays while the player's last life is lost and the "GAME OVER"
+  message shows up. If not specified, the level's music will continue.
+* "warp": Plays during any level's warp zone. If not specified, will play the
+  music corresponding to the level that shares the level data with this warp
+  zone (for example, level 10's warp zone will play level 1's music).
+
+Music can be in either MP3 or OGG formats. Not all browsers support both
+formats, so copies in both formats may be included for wider compatibility. In
+that case, OGG will be preferred if the browser supports it with MP3 being
+used as a fallback.
+
+In the ZIP format, simply make a ZIP file that contains music files under any
+of the above names with the proper file extension depending on the format.
+
+The text format is a series of "[Key]=[URL]" declarations, with the first line
+being "$music". There must not be any spaces. The URL can end in ".???", this
+will be replaced with ".mp3" or ".ogg" depending on what the browser supports.
+For example:
+
+---
+$music
+level1=https://example.com/Level1Music.???
+level2=https://example.com/Level2Music.???
+---
+
+Note that the above isn't a valid working example, it's just to give an idea
+of how it works. Please use a file hosting service or server that supports
+direct, raw links to the files.
+
+For an example music pack, here's a link to a ZIP-format one that uses the
+soundtrack from Commander Keen 5 - The Armaggedon Machine:
+https://drive.google.com/uc?export=download&id=1ocVNnl5Kh7VWpGAXL7undz4aAoiXqCk_
