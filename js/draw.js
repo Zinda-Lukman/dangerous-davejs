@@ -300,9 +300,7 @@ function draw() {
       dave.state = DaveDying
       explosions[explosions.length] = new Sprite(dave.x,dave.y,20,13,0,0,20,13,"gfx/"+graphicsSet+"/explosion.png",true)
       lives--
-      //console.log(`I am Dave ${lives}, ${dave}`)
       if (lives < 0) {
-        console.log(`I am here ${lives}`)
         // Offer shop before final game over when running as a Telegram app
         if (typeof shopShown === 'undefined') shopShown = false
         if (!shopShown && typeof showShopModal === 'function') {
@@ -310,11 +308,9 @@ function draw() {
           showShopModal()
           
         } else {
-          console.log("Sound Played!")
           setMusic("gameover")
         }
       }
-      //console.log(`I am here after buy ${lives}`)
       updateHud()
     }
     if (lives < 0) {

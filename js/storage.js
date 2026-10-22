@@ -203,7 +203,6 @@ async function loadUserProgressFromDatabase() {
       } else {
         const json = await res.json();
         results = json && Object.prototype.hasOwnProperty.call(json, 'data') ? (json.data ?? null) : null;
-        console.log(`Load ${lds + 1}: ${results.highest_level}, ${results.highest_score}, ${typeof results.savedLevels}`)
         lds = lds + 1
         return await mergeResults(results);
       }
@@ -226,7 +225,6 @@ async function loadUserProgressFromDatabase() {
     const rows = await res.json();
     if (rows && rows.length) {
        results = rows[0] ?? null;
-       console.log(`Load: ${results}`)
        return await mergeResults(results);
     }else{
        return getLocalUserProfile();
@@ -295,13 +293,10 @@ function recordCompletedLevel(level) {
   if (!level) return getLocalUserProfile()
   var [profile, changed] = updateStoredHighestScore(score)
   var nextLevel = parseInt(level, 10) || 0
-  console.log(profile.highest_score)
-  console.log(changed)
   if (nextLevel > (profile.highest_level || 0)) {
     changed = true
     profile.highest_level = nextLevel
   }
-  console.log(profile.highest_score)
   if(changed){
     setLocalUserProfile(profile)
     persistUserProgress().catch(function() {})

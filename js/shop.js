@@ -19,7 +19,6 @@ function initTelegramIntegration() {
         tgStars = initUnsafe.tgStars
       }
     } catch(e) {}
-    //console.log('[shop] Telegram WebApp detected; stars=', tgStars)
   }
 }
 
@@ -35,7 +34,6 @@ function enableTGSimulation(initialStars) {
   }
   tgWebApp = window.Telegram.WebApp
   initTelegramIntegration()
-  console.log('[shop] Telegram simulation enabled')
 }
 
 // Initialize if real Telegram is present
@@ -55,7 +53,6 @@ function styleShopButton(btn) {
 
 function createShopModal() {
   if (document.getElementById('tg-shop-modal')) return
-  console.log('[shop] createShopModal')
 
   var modal = document.createElement('div')
   modal.id = 'tg-shop-modal'
@@ -178,7 +175,6 @@ function showShopModal() {
   updateShopBalance()
   var m = document.getElementById('tg-shop-modal')
   if (!m) return
-  console.log('[shop] showShopModal called')
   // Temporarily suppress the HUD game-over display by restoring lives to 0 while modal is active
   if (typeof lives !== 'undefined' && lives < 0) {
     window._shopPrevLives = lives
@@ -189,13 +185,11 @@ function showShopModal() {
   shopShown = true
   m.style.display = 'flex'
   freezeGame = true
-  console.log('[shop] modal displayed')
 }
 
 function hideShopModal(resume) {
   var m = document.getElementById('tg-shop-modal')
   if (!m) return
-  console.log('[shop] hideShopModal called, resume=', resume)
   m.style.display = 'none'
   freezeGame = false
   if (!resume) {
@@ -216,7 +210,6 @@ async function purchaseLives(n) {
   var msg = document.getElementById('tg-shop-msg')
   // perform purchase: deduct stars and add lives
   if (isDemoMode(getUserId())){
-      console.log("In demo mode")
       showToast("In Demo mode")
       if (typeof tgStars === 'undefined') tgStars = 1000
       if (tgStars < cost) {
@@ -578,7 +571,6 @@ function showSavePrompt(level) {
 
   yes.onclick = async function() {
     if (isDemoMode(getUserId())){
-      console.log("In demo mode")
       if (typeof tgStars === 'undefined') tgStars = 1000
       if (tgStars < cost) {
         removeSavePromptUnfreeze(m)
